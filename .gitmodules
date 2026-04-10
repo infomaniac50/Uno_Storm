@@ -1,0 +1,3 @@
+[submodule "lib/SI4707"]
+	path = lib/SI4707
+	url = git@github.com:infomaniac50/Si4707
