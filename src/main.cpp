@@ -23,6 +23,33 @@
 #include <EepromSecureData.h>
 #include <SimpleSerialShell.h>
 
+#define asFlashString(s) (__FlashStringHelper*)(s)
+
+static const char MISSING_ARGUMENT_TEXT[] PROGMEM = "Missing Argument: ";
+static const char SETTING_NAME_TEXT[] PROGMEM = "Setting name";
+static const char SETTING_VALUE_TEXT[] PROGMEM = "Setting Value";
+static const char NOT_RECOGNIZED_TEXT[] PROGMEM = " not recognized";
+
+static const char INVALID_ARGUMENT_VALUE_TEXT[] PROGMEM = "Invalid argument <value>: ";
+
+static const char SENSOR_LOCATION_TEXT[] PROGMEM = "sensorLocation";
+static const char INDOOR_TEXT[] PROGMEM = "INDOOR";
+static const char OUTDOOR_TEXT[] PROGMEM = "OUTDOOR";
+
+static const char TUNING_CAPACTIOR_TEXT[] PROGMEM = "tuningCapacitor";
+
+static const char YOU_MUST_ENTER_A_NUMBER_TEXT[] PROGMEM = "You must enter a number";
+
+static const char LIGHTNING_THRESHOLD_TEXT[] PROGMEM = "lightningThreshold";
+static const char WATCHDOG_THRESHOLD_TEXT[] PROGMEM = "watchdogThreshold";
+static const char NOISE_FLOOR_TEXT[] PROGMEM = "noiseFloor";
+static const char SPIKE_REJECTION_TEXT[] PROGMEM = "spikeRejection";
+static const char REPORT_DISTURBER_TEXT[] PROGMEM = "reportDisturber";
+
+static const char ENTER_NUMBER_TRUE_OR_FALSE_TEXT[] PROGMEM = "You must enter 1 or 0, indicating true or false respectively.";
+
+static const char DISPLAY_OSC_TEXT[] PROGMEM = "displayOsc";
+
 SensorSettings sensorSettings;
 EepromSecureData<SensorSettings> settingsStorage(sensorSettings);
 
@@ -45,45 +72,6 @@ size_t printlnByteBinary(uint8_t n)
   *str = '\0';
 
   return Serial.println(buf);
-}
-
-void showSettingNameNotRecognizedText() {
-  Serial.println(F("Setting name not recognized."));
-}
-
-//
-//  Prints the Function Menu.
-//
-void showMenu()
-{
-  Serial.println(F("\n**Radio Commands**"));
-  Serial.println(F("h/?:\tDisplay this menu"));
-  Serial.println(F("d:\tChannel down"));
-  Serial.println(F("u:\tChannel up"));
-  Serial.println(F("s:\tScan"));
-  Serial.println(F("-:\tVolume -"));
-  Serial.println(F("+:\tVolume +"));
-  Serial.println(F("m:\tMute / Unmute"));
-  Serial.println(F("o:\tOn / Off"));
-
-  Serial.println(F("\n**Lightning Sensor Commands**"));
-  Serial.println(F(">:\tSet a setting."));
-  Serial.println(F("<:\tGet a setting."));
-  Serial.println(F("w:\tSave settings to non-volitile storage."));
-
-  Serial.println(F("\n**Lightning Sensor Settings**"));
-  Serial.println(F("sensorLocation <value> Must be a string equal to \"INDOOR\" or \"OUTDOOR\"."));
-  Serial.println(F("tuningCapacitor <value> Must be a number between 0 and 120 and divisible by 8."));
-  Serial.println(F("lightningThreshold <value> Must be 1, 5, 9, or 16."));
-  Serial.println(F("watchdogThreshold <value> Must be a number between 0 and 10."));
-  Serial.println(F("noiseFloor <value> Must be a number between 1 and 7."));
-  Serial.println(F("spikeRejection <value> Must be a number between 1 and 11."));
-  Serial.println(F("reportDisturber <value> Must be 1 or 0, indicating true or false respectively."));
-  Serial.println(F("displayOsc <mode> <osc>"));
-  Serial.println(F("\tThis setting can only be written to."));
-  Serial.println(F("\tThe mode argument must be 1 or 0, indicating true or false respectively."));
-  Serial.println(F("\tThe osc argument must be between 1 and 3."));
-  Serial.println();
 }
 
 bool toggleErrorLed(void *)
@@ -155,50 +143,72 @@ void checkLightningSensor()
   }
 }
 
-bool setSetting()
+int setSetting(int argc, char **argv)
 {
-  String argName = Serial.readStringUntil(' ');
-  String argValue = Serial.readStringUntil('\n');
+  if (argc <= 0) {
+    Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
+    Serial.println(asFlashString(SETTING_NAME_TEXT));
+
+    return EXIT_FAILURE;
+  }
+
+  if (argc <= 1) {
+    Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
+    Serial.println(asFlashString(SETTING_VALUE_TEXT));
+
+    return EXIT_FAILURE;
+  }
+
+  String argName = String(argv[0]);
+  String argValue = String(argv[1]);
 
   argName.trim();
   argValue.trim();
 
-  if (strcasecmp_P(argName.c_str(), PSTR("sensorLocation")) == 0)
+  if (strcasecmp_P(argName.c_str(), SENSOR_LOCATION_TEXT) == 0)
   {
-    if (strcasecmp_P(argValue.c_str(), PSTR("INDOOR")) == 0)
+    if (strcasecmp_P(argValue.c_str(), INDOOR_TEXT) == 0)
     {
       sensorSettings.sensorLocation = INDOOR;
     }
-    else if (strcasecmp_P(argValue.c_str(), PSTR("OUTDOOR")) == 0)
+    else if (strcasecmp_P(argValue.c_str(), OUTDOOR_TEXT) == 0)
     {
       sensorSettings.sensorLocation = OUTDOOR;
     }
     else
     {
-      Serial.println(F("Invalid argument <value>: You must enter either INDOOR or OUTDOOR."));
-      return false;
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.println(F("You must enter either INDOOR or OUTDOOR."));
+
+      return EXIT_FAILURE;
     }
 
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     rawSensor.setIndoorOutdoor(sensorSettings.sensorLocation);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("tuningCapacitor")) == 0)
+  if (strcasecmp_P(argName.c_str(), TUNING_CAPACTIOR_TEXT) == 0)
   {
 
     int value = argValue.toInt();
     if (value < 0 || value > 120)
     {
-      Serial.println(F("Invalid argument <value>: You must enter a number between 0 and 120."));
-      return false;
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.print(asFlashString(YOU_MUST_ENTER_A_NUMBER_TEXT));
+      Serial.println(F(" between 0 and 120."));
+
+      return EXIT_FAILURE;
     }
 
     if (value % 8 != 0)
     {
-      Serial.println(F("Invalid argument <value>: You must enter a number divisible by 8."));
-      return false;
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.print(asFlashString(YOU_MUST_ENTER_A_NUMBER_TEXT));
+      Serial.println(F(" divisible by 8."));
+
+      return EXIT_FAILURE;
     }
 
     sensorSettings.tuningCapacitor = (uint8_t)value;
@@ -206,16 +216,18 @@ bool setSetting()
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     rawSensor.tuneCap(sensorSettings.tuningCapacitor);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("lightningThreshold")) == 0)
+  if (strcasecmp_P(argName.c_str(), LIGHTNING_THRESHOLD_TEXT) == 0)
   {
     int value = argValue.toInt();
     if (value != 1 && value != 5 && value != 9 && value != 16)
     {
-      Serial.println(F("Invalid argument <value>: You must enter 1, 5, 9, or 16."));
-      return false;
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.println(F("You must enter 1, 5, 9, or 16."));
+
+      return EXIT_FAILURE;
     }
 
     sensorSettings.lightningThreshold = (uint8_t)value;
@@ -223,16 +235,19 @@ bool setSetting()
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     rawSensor.lightningThreshold(sensorSettings.lightningThreshold);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("watchdogThreshold")) == 0)
+  if (strcasecmp_P(argName.c_str(), WATCHDOG_THRESHOLD_TEXT) == 0)
   {
     int value = argValue.toInt();
     if (value < 0 || value > 10)
     {
-      Serial.println(F("Invalid argument <value>: You must enter a number between 0 and 10."));
-      return false;
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.print(asFlashString(YOU_MUST_ENTER_A_NUMBER_TEXT));
+      Serial.println(F(" between 0 and 10."));
+
+      return EXIT_FAILURE;
     }
 
     sensorSettings.watchdogThreshold = (uint8_t)value;
@@ -240,16 +255,19 @@ bool setSetting()
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     rawSensor.watchdogThreshold(sensorSettings.watchdogThreshold);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("noiseFloor")) == 0)
+  if (strcasecmp_P(argName.c_str(), NOISE_FLOOR_TEXT) == 0)
   {
     int value = argValue.toInt();
     if (value < 1 || value > 7)
     {
-      Serial.println(F("Invalid argument <value>: You must enter a number between 1 and 7."));
-      return false;
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.print(asFlashString(YOU_MUST_ENTER_A_NUMBER_TEXT));
+      Serial.println(F(" between 1 and 7."));
+
+      return EXIT_FAILURE;
     }
 
     sensorSettings.noiseFloor = (uint8_t)value;
@@ -257,16 +275,19 @@ bool setSetting()
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     rawSensor.setNoiseLevel(sensorSettings.noiseFloor);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("spikeRejection")) == 0)
+  if (strcasecmp_P(argName.c_str(), SPIKE_REJECTION_TEXT) == 0)
   {
     int value = argValue.toInt();
     if (value < 1 || value > 11)
     {
-      Serial.println(F("Invalid argument <value>: You must enter a number between 1 and 11."));
-      return false;
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.print(asFlashString(YOU_MUST_ENTER_A_NUMBER_TEXT));
+      Serial.println(F(" between 1 and 11."));
+
+      return EXIT_FAILURE;
     }
 
     sensorSettings.spikeRejection = (uint8_t)value;
@@ -274,15 +295,16 @@ bool setSetting()
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     rawSensor.spikeRejection(sensorSettings.spikeRejection);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("reportDisturber")) == 0)
+  if (strcasecmp_P(argName.c_str(), REPORT_DISTURBER_TEXT) == 0)
   {
     int value = argValue.toInt();
     if (value < 0 || value > 1)
     {
-      Serial.println(F("The value argument must be 1 or 0, indicating true or false respectively."));
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.println(asFlashString(ENTER_NUMBER_TRUE_OR_FALSE_TEXT));
       return false;
     }
 
@@ -291,177 +313,224 @@ bool setSetting()
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     rawSensor.maskDisturber(!sensorSettings.reportDisturber);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("displayOsc")) == 0)
+  if (strcasecmp_P(argName.c_str(), DISPLAY_OSC_TEXT) == 0)
   {
-    int value = EOF;
+    int mode = EOF;
     int osc = EOF;
 
-    sscanf_P(argValue.c_str(), PSTR("%d %d"), value, osc);
+    if (argc < 3) {
+      Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
+      Serial.println(asFlashString(SETTING_VALUE_TEXT));
 
-    if (value < 0 || value > 1)
+      return EXIT_FAILURE;
+    }
+
+    String argOsc = String(argv[2]);
+    argOsc.trim();
+
+    if (mode < 0 || mode > 1)
     {
-      Serial.println(F("The value argument must be 1 or 0, indicating true or false respectively."));
-      return false;
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
+      Serial.println(asFlashString(ENTER_NUMBER_TRUE_OR_FALSE_TEXT));
+
+      return EXIT_FAILURE;
     }
 
     if (osc < 1 || osc > 3)
     {
+      Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
       Serial.println(F("The osc argument must be between 1 and 3"));
-      return false;
+
+      return EXIT_FAILURE;
     }
 
-    if (value == 1)
+    if (mode == 1)
     {
       sensor.detachInterruptPin();
     }
 
     SparkFun_AS3935 rawSensor = sensor.getSensor();
-    rawSensor.displayOscillator((bool)value, osc);
+    rawSensor.displayOscillator((bool)mode, osc);
 
-    if (value == 0)
+    if (mode == 0)
     {
       sensor.attachInterruptPin();
     }
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  showSettingNameNotRecognizedText();
+  Serial.print(asFlashString(SETTING_NAME_TEXT));
+  Serial.println(asFlashString(NOT_RECOGNIZED_TEXT));
 
-  return false;
+  return EXIT_FAILURE;
 }
 
-bool getSetting()
+int getSetting(int argc, char **argv)
 {
-  String argName = Serial.readStringUntil('\n');
+  if (argc <= 0) {
+    Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
+    Serial.println(asFlashString(SETTING_NAME_TEXT));
+
+    return EXIT_FAILURE;
+  }
+
+  String argName = String(argv[0]);
 
   argName.trim();
 
-  if (strcasecmp_P(argName.c_str(), PSTR("sensorLocation")) == 0)
+  if (strcasecmp_P(argName.c_str(), SENSOR_LOCATION_TEXT) == 0)
   {
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     sensorSettings.sensorLocation = rawSensor.readIndoorOutdoor();
 
     if (sensorSettings.sensorLocation == INDOOR)
     {
-      Serial.println(F("INDOOR"));
+      Serial.println(asFlashString(INDOOR_TEXT));
     }
     else if (sensorSettings.sensorLocation == OUTDOOR) {
-      Serial.println(F("OUTDOOR"));
+      Serial.println(asFlashString(OUTDOOR_TEXT));
     }
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("tuningCapacitor")) == 0)
+  if (strcasecmp_P(argName.c_str(), TUNING_CAPACTIOR_TEXT) == 0)
   {
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     sensorSettings.tuningCapacitor = rawSensor.readTuneCap();
 
     Serial.println(sensorSettings.tuningCapacitor);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("lightningThreshold")) == 0)
+  if (strcasecmp_P(argName.c_str(), LIGHTNING_THRESHOLD_TEXT) == 0)
   {
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     sensorSettings.lightningThreshold = rawSensor.readLightningThreshold();
 
     Serial.println(sensorSettings.lightningThreshold);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("watchdogThreshold")) == 0)
+  if (strcasecmp_P(argName.c_str(), WATCHDOG_THRESHOLD_TEXT) == 0)
   {
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     sensorSettings.watchdogThreshold = rawSensor.readWatchdogThreshold();
 
     Serial.println(sensorSettings.watchdogThreshold);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("noiseFloor")) == 0)
+  if (strcasecmp_P(argName.c_str(), NOISE_FLOOR_TEXT) == 0)
   {
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     sensorSettings.noiseFloor = rawSensor.readNoiseLevel();
 
     Serial.println(sensorSettings.noiseFloor);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("spikeRejection")) == 0)
+  if (strcasecmp_P(argName.c_str(), SPIKE_REJECTION_TEXT) == 0)
   {
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     sensorSettings.spikeRejection = rawSensor.readSpikeRejection();
 
     Serial.println(sensorSettings.spikeRejection);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  if (strcasecmp_P(argName.c_str(), PSTR("reportDisturber")) == 0)
+  if (strcasecmp_P(argName.c_str(), REPORT_DISTURBER_TEXT) == 0)
   {
     SparkFun_AS3935 rawSensor = sensor.getSensor();
 
     sensorSettings.reportDisturber = !((bool)rawSensor.readMaskDisturber());
 
-    Serial.println(sensorSettings.reportDisturber, 2);
+    printlnByteBinary(sensorSettings.reportDisturber);
 
-    return true;
+    return EXIT_SUCCESS;
   }
 
-  showSettingNameNotRecognizedText();
+  Serial.print(asFlashString(SETTING_NAME_TEXT));
+  Serial.println(asFlashString(NOT_RECOGNIZED_TEXT));
 
-  return false;
+  return EXIT_FAILURE;
+}
+
+int saveSettings(int /*argc*/ = 0, char** /*argv*/ = NULL)
+{
+  settingsStorage = sensorSettings;
+
+  return settingsStorage.save() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 uint8_t lastIntStatus;
 
-void printRssiSnrStatus() {
+void radioRssiSnrStatus() {
   Serial.print(F("  RSSI: "));
   Serial.print(rssi);
   Serial.print(F("  SNR: "));
   Serial.println(snr);
 }
 
-void printSeekStatus() {
+int radioSeekStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
   Serial.print(F("FREQ: "));
   Serial.print(frequency, 3);
-  printRssiSnrStatus();
+  radioRssiSnrStatus();
+
+  return EXIT_SUCCESS;
 }
 
-void printRsqStatus() {
+int radioRsqStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  Radio.getRsqStatus(SI4707_INTACK);
+
   Serial.print(F("FREQOFF: "));
   Serial.print(freqoff);
-  printRssiSnrStatus();
+  radioRssiSnrStatus();
+
+  return EXIT_SUCCESS;
 }
+
+int radioScan(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  Serial.println(F("Scanning....."));
+  Radio.scan();
+
+  return EXIT_SUCCESS;
+}
+
+int radioLastStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  printlnByteBinary(lastIntStatus);
+
+  return EXIT_SUCCESS;
+}
+
 //
 //  Status bits are processed here.
 //
-void getRadioStatus()
+int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
 {
   Radio.getIntStatus();
-  lastIntStatus = intStatus;  
+  lastIntStatus = intStatus;
 
   if (intStatus & SI4707_STCINT)
   {
     Radio.getTuneStatus(SI4707_INTACK);  //  Using SI4707_INTACK clears SI4707_STCINT, SI4707_CHECK preserves it.
-    printSeekStatus();
+    radioSeekStatus();
     Radio.sameFlush();             //  This should be done after any tune function.
     //intStatus |= SI4707_RSQINT;         //  We can force it to get rsqStatus on any tune.
   }
 
   if (intStatus & SI4707_RSQINT)
   {
-    Radio.getRsqStatus(SI4707_INTACK);
-    printRsqStatus();
+    radioRsqStatus();
   }
 
   if (intStatus & SI4707_SAMEINT)
@@ -474,18 +543,18 @@ void getRadioStatus()
     printlnByteBinary(sameState);
     Serial.println(sameLength);
     Serial.println(sameHeaderCount);
-    
+
     // Response
     // | Bit    | D7  | D6  | D5 | D4 | D3     | D2      | D1     | D0     |
     // |--------|-----|-----|----|----|--------|---------|--------|--------|
     // | STATUS | CTS | ERR | X  | X  | RSQINT | SAMEINT | ASQINT | STCINT |
     // | RESP1  | X   | X   | X  | X  | EOMDET | SOMDET  | PREDET | HDRRDY |
-    
+
     // RESP2 STATE[7:0]
     // State Machine Status
-    // 0 = End of message. 
-    // 1 = Preamble detected. 
-    // 2 = Receiving SAME header message. 
+    // 0 = End of message.
+    // 1 = Preamble detected.
+    // 2 = Receiving SAME header message.
     // 3 = SAME header message complete.
     if (sameStatus & SI4707_EOMDET)
     {
@@ -501,8 +570,12 @@ void getRadioStatus()
       Serial.println(F("Preamble detected."));
     }
 
-    if (msgStatus & SI4707_MSGAVL && (!(msgStatus & SI4707_MSGUSD)))  // If a message is available and not already used,
-      Radio.sameParse();                                // parse it.
+    // If a message is available and not already used,
+    if (msgStatus & SI4707_MSGAVL && (!(msgStatus & SI4707_MSGUSD)))
+    {
+      // parse it.
+      Radio.sameParse();
+    }
 
     if (msgStatus & SI4707_MSGPAR)
     {
@@ -511,6 +584,75 @@ void getRadioStatus()
       Serial.println(sameOriginatorName);
       Serial.print(F("Event: "));
       Serial.println(sameEventName);
+      // | Event Code | Event Description                                           | Event Level |
+      // |------------|-------------------------------------------------------------|-------------|
+      // | ADR        | Administrative Message                                      | ADV         |
+      // | AVA        | Avalanche Watch                                             | WCH         |
+      // | AVW        | Avalanche Warning                                           | WRN         |
+      // | BLU        | Blue Alert                                                  | WRN         |
+      // | BZW        | Blizzard Warning                                            | WRN         |
+      // | CAE        | Child Abduction Emergency                                   | ADV         |
+      // | CDW        | Civil Danger Warning                                        | WRN         |
+      // | CEM        | Civil Emergency Message                                     | WRN         |
+      // | CFA        | Coastal Flood Watch                                         | WCH         |
+      // | CFW        | Coastal Flood Warning                                       | WRN         |
+      // | DMO        | Practice/Demo Warning                                       | TEST        |
+      // | DSW        | Dust Storm Warning                                          | WRN         |
+      // | EAN        | National Emergency Message                                  | WRN         |
+      // | EAT        | Emergency Action Termination                                | ADV         |
+      // | EQW        | Earthquake Warning                                          | WRN         |
+      // | EVI        | Evacuation Immediate                                        | WRN         |
+      // | EWW        | Extreme Wind Warning                                        | WRN         |
+      // | FFA        | Flash Flood Watch                                           | WCH         |
+      // | FFS        | Flash Flood Statement                                       | ADV         |
+      // | FFW        | Flash Flood Warning                                         | WRN         |
+      // | FLA        | Flood Watch                                                 | WCH         |
+      // | FLS        | Flood Statement                                             | ADV         |
+      // | FLW        | Flood Warning                                               | WRN         |
+      // | FRW        | Fire Warning                                                | WRN         |
+      // | FSW        | Flash Freeze Warning                                        | WRN         |
+      // | FZW        | Freeze Warning (also known as a "Frost Warning" in Canada.) | WRN         |
+      // | HLS        | Hurricane Local Statement                                   | ADV         |
+      // | HMW        | Hazardous Materials Warning                                 | WRN         |
+      // | HUA        | Hurricane Watch                                             | WCH         |
+      // | HUW        | Hurricane Warning                                           | WRN         |
+      // | HWA        | High Wind Watch                                             | WCH         |
+      // | HWW        | High Wind Warning                                           | WRN         |
+      // | LAE        | Local Area Emergency                                        | ADV         |
+      // | LEW        | Law Enforcement Warning                                     | WRN         |
+      // | MEP        | Missing and Endangered Persons                              | ADV         |
+      // | NAT        | National Audible Test                                       | TEST        |
+      // | NIC        | National Information Center                                 | ADV         |
+      // | NMN        | Network Notification Message                                | ADV         |
+      // | NPT        | Nationwide Test of the Emergency Alert System               | TEST        |
+      // | NST        | National Silent Test                                        | TEST        |
+      // | NUW        | Nuclear Power Plant Warning                                 | WRN         |
+      // | RHW        | Radiological Hazard Warning                                 | WRN         |
+      // | RMT        | Required Monthly Test                                       | TEST        |
+      // | RWT        | Required Weekly Test                                        | TEST        |
+      // | SMW        | Special Marine Warning                                      | WRN         |
+      // | SPS        | Special Weather Statement                                   | ADV         |
+      // | SPW        | Shelter In-Place warning                                    | WRN         |
+      // | SQW        | Snow Squall Warning                                         | WRN         |
+      // | SSA        | Storm Surge Watch                                           | WCH         |
+      // | SSW        | Storm Surge Warning                                         | WRN         |
+      // | SVA        | Severe Thunderstorm Watch                                   | WCH         |
+      // | SVR        | Severe Thunderstorm Warning                                 | WRN         |
+      // | SVS        | Severe Weather Statement (U.S., CAN)                        | ADV         |
+      // | TOA        | Tornado Watch                                               | WCH         |
+      // | TOE        | 911 Telephone Outage Emergency                              | ADV         |
+      // | TOR        | Tornado Warning/Emergency                                   | WRN         |
+      // | TRA        | Tropical Storm Watch                                        | WCH         |
+      // | TRW        | Tropical Storm Warning                                      | WRN         |
+      // | TSA        | Tsunami Watch                                               | WCH         |
+      // | TSW        | Tsunami Warning                                             | WRN         |
+      // | VOW        | Volcano Warning                                             | WRN         |
+      // | WSA        | Winter Storm Watch                                          | WCH         |
+      // | WSW        | Winter Storm Warning                                        | WRN         |
+      // | ??A        | Unrecognized Watch                                          | WCH         |
+      // | ??E        | Unrecognized Emergency                                      | ADV         |
+      // | ??S        | Unrecognized Statement                                      | ADV         |
+      // | ??W        | Unrecognized Warning                                        | WRN         |
       Serial.print(F("Locations: "));
       Serial.println(sameLocations);
       Serial.print(F("Location Codes: "));
@@ -553,31 +695,30 @@ void getRadioStatus()
   {
     Radio.getAsqStatus(SI4707_INTACK);
 
-    if (sameWat == asqStatus)
-      return;
+    if (sameWat != asqStatus) {
+      if (asqStatus == 0x01)
+      {
+        // New Alert Tone
+        Radio.setProperty(SI4707_WB_ASQ_INT_SOURCE, (SI4707_ALERTOFIEN));
+        // SAME is done by now.
+        stopSameFlushTimer();
+        Radio.sameFlush();
 
-    if (asqStatus == 0x01)
-    {
-      // New Alert Tone 
-      Radio.setProperty(SI4707_WB_ASQ_INT_SOURCE, (SI4707_ALERTOFIEN));
-      // SAME is done by now.
-      stopSameFlushTimer();
-      Radio.sameFlush();
-      
-      Serial.println(F("WAT is on."));
-      Serial.println();
-      //  More application specific code could go here.  (Unmute audio, turn something on/off, etc.)
-    }
-    
-    if (asqStatus == 0x02)
-    {
-      Radio.setProperty(SI4707_WB_ASQ_INT_SOURCE, (SI4707_ALERTONIEN));
-      Serial.println(F("WAT is off."));
-      Serial.println();
-      //  More application specific code could go here.  (Mute audio, turn something on/off, etc.)
-    }
+        Serial.println(F("WAT is on."));
+        Serial.println();
+        //  More application specific code could go here.  (Unmute audio, turn something on/off, etc.)
+      }
 
-    sameWat = asqStatus;
+      if (asqStatus == 0x02)
+      {
+        Radio.setProperty(SI4707_WB_ASQ_INT_SOURCE, (SI4707_ALERTONIEN));
+        Serial.println(F("WAT is off."));
+        Serial.println();
+        //  More application specific code could go here.  (Mute audio, turn something on/off, etc.)
+      }
+
+      sameWat = asqStatus;
+    }
   }
 
   if (intStatus & SI4707_ERRINT)
@@ -586,11 +727,118 @@ void getRadioStatus()
     Serial.println(F("An error occured!"));
     Serial.println();
   }
+
+  return EXIT_SUCCESS;
+}
+
+int radioChannelDown(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  if (channel <= SI4707_WB_MIN_FREQUENCY) {
+    return EXIT_FAILURE;
+  }
+  Serial.println(F("Channel down."));
+  channel -= SI4707_WB_CHANNEL_SPACING;
+  Radio.tune();
+
+  return EXIT_SUCCESS;
+}
+
+int radioChannelUp(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  if (channel >= SI4707_WB_MAX_FREQUENCY) {
+    return EXIT_FAILURE;
+  }
+  Serial.println(F("Channel up."));
+  channel += SI4707_WB_CHANNEL_SPACING;
+  Radio.tune();
+
+  return EXIT_SUCCESS;
+}
+
+int radioVolume(int argc, char **argv) {
+  if (argc <= 0) {
+    Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
+    Serial.println(asFlashString(SETTING_VALUE_TEXT));
+
+    return EXIT_FAILURE;
+  }
+
+  String argValue = String(argv[0]);
+
+  argValue.trim();
+
+  Radio.setVolume(argValue.toInt());
+  Serial.print(F("Volume: "));
+  Serial.println(volume);
+
+  return EXIT_SUCCESS;
+}
+
+int radioMute(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  if (mute)
+  {
+    Radio.setMute(SI4707_OFF);
+    Serial.println(F("Mute: Off"));
+  }
+  else
+  {
+    Radio.setMute(SI4707_ON);
+    Serial.println(F("Mute: On"));
+  }
+
+  return EXIT_SUCCESS;
+}
+
+int radioSameStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  Radio.getSameStatus(SI4707_CHECK);
+  printlnByteBinary(msgStatus);
+
+  return EXIT_SUCCESS;
+}
+
+int radioPower(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  if (power)
+  {
+    Radio.disableInterrupt();
+    Radio.off();
+    Serial.println(F("Radio powered off."));
+  }
+  else
+  {
+    Radio.on();
+    Radio.enableInterrupt();
+    Serial.println(F("Radio powered on."));
+    Radio.tune();
+  }
+
+  return EXIT_SUCCESS;
 }
 
 //
 //  The End.
 //
+
+//
+//  Prints the Function Menu.
+//
+int showMenu(int /*argc*/ = 0, char** /*argv*/ = NULL)
+{
+  shell.printHelp(0, NULL);
+
+  Serial.println(F("\n**Lightning Sensor Settings**"));
+  Serial.println(F("sensorLocation <value> Must be a string equal to \"INDOOR\" or \"OUTDOOR\"."));
+  Serial.println(F("tuningCapacitor <value> Must be a number between 0 and 120 and divisible by 8."));
+  Serial.println(F("lightningThreshold <value> Must be 1, 5, 9, or 16."));
+  Serial.println(F("watchdogThreshold <value> Must be a number between 0 and 10."));
+  Serial.println(F("noiseFloor <value> Must be a number between 1 and 7."));
+  Serial.println(F("spikeRejection <value> Must be a number between 1 and 11."));
+  Serial.println(F("reportDisturber <value> Must be 1 or 0, indicating true or false respectively."));
+  Serial.println(F("displayOsc <mode> <osc>"));
+  Serial.println(F("\tThis setting can only be written to."));
+  Serial.println(F("\tThe mode argument must be 1 or 0, indicating true or false respectively."));
+  Serial.println(F("\tThe osc argument must be between 1 and 3."));
+  Serial.println();
+
+  return EXIT_SUCCESS;
+}
 
 void setup()
 {
@@ -631,7 +879,7 @@ void setup()
   //
   Radio.setProperty(SI4707_WB_SAME_INTERRUPT_SOURCE, (SI4707_EOMDETIEN | SI4707_HDRRDYIEN));
   Serial.print('.');
-  
+
   //
   //  ASQ Interrupt Sources.
   //
@@ -643,140 +891,50 @@ void setup()
   Radio.tune(162550);  //  6 digits only.
 
   Serial.println(F("Done"));
-  
+
   Serial.println(F("Starting Lightning Sensor"));
-  
+
   if (sensor.begin(sensorSettings) < 0) {
     Serial.println(F("Failed"));
-    while(1) {
+    while (1) {
       delay(100);
     }
   }
 
   Radio.enableInterrupt();
 
+  shell.attach(Serial);
+  shell.addCommand(F("save Save settings to non-volatile storage."), saveSettings);
+  shell.addCommand(F("get <name> Get a setting."), getSetting);
+  shell.addCommand(F("set <name> <value> Set a setting."), setSetting);
+  shell.addCommand(F("help Display this menu"), showMenu);
+
+  shell.addCommand(F("radioChannelDown Channel down"), radioChannelDown);
+  shell.addCommand(F("radioChannelUp Channel up"), radioChannelUp);
+
+  shell.addCommand(F("radioScan Scan for best signal"), radioScan);
+
+  shell.addCommand(F("radioVolume <value> Must be a number between 0 and 63."), radioVolume);
+  shell.addCommand(F("radioMute Toggle Hard Mute"), radioMute);
+
+  shell.addCommand(F("radioPower Toggle Radio Power"), radioPower);
+
+  shell.addCommand(F("radioRsqStatus Print signal strength"), radioRsqStatus);
+  shell.addCommand(F("radioSeekStatus Print last tune status"), radioSeekStatus);
+  shell.addCommand(F("radioSameStatus Print SAME message status"), radioSameStatus);
+  shell.addCommand(F("radioStatus Check interrupt status now"), radioStatus);
+  shell.addCommand(F("radioLastStatus Print last interrupt status"), radioLastStatus);
+
   Serial.println(F("Startup Complete"));
 }
 
 void loop()
 {
-  if (Serial.available() > 0) {
-    char c = Serial.read();
-    switch (c) {
-      case 'h':
-      case '?':
-        showMenu();
-        break;
-      case 'w':
-        Serial.print(F("Settings "));
-        settingsStorage = sensorSettings;
-        if (settingsStorage.save()) {
-          Serial.println(F("Saved"));
-        }
-        else {
-          Serial.println(F("Save Failed"));
-        }
-        break;
-      case '>':
-        setSetting();
-        break;
-      case '<':
-        getSetting();
-        break;
-
-      case 'd':
-        if (channel <= SI4707_WB_MIN_FREQUENCY)
-          break;
-        Serial.println(F("Channel down."));
-        channel -= SI4707_WB_CHANNEL_SPACING;
-        Radio.tune();
-        break;
-
-      case 'u':
-        if (channel >= SI4707_WB_MAX_FREQUENCY)
-          break;
-        Serial.println(F("Channel up."));
-        channel += SI4707_WB_CHANNEL_SPACING;
-        Radio.tune();
-        break;
-      case 'r':
-        Radio.getRsqStatus(SI4707_INTACK);
-        printRsqStatus();
-        break;
-      case 'T':
-        printSeekStatus();
-        break;
-      case 't':
-        Serial.println(F("Scanning....."));
-        Radio.scan();
-        break;
-
-      case '-':
-        if (volume <= 0x0000)
-          break;
-        volume--;
-        Radio.setVolume(volume);
-        Serial.print(F("Volume: "));
-        Serial.println(volume);
-        break;
-
-      case '+':
-        if (volume >= 0x003F)
-          break;
-        volume++;
-        Radio.setVolume(volume);
-        Serial.print(F("Volume: "));
-        Serial.println(volume, DEC);
-        break;
-
-      case 'm':
-        if (mute)
-        {
-          Radio.setMute(SI4707_OFF);
-          Serial.println(F("Mute: Off"));
-          break;
-        }
-        else
-        {
-          Radio.setMute(SI4707_ON);
-          Serial.println(F("Mute: On"));
-          break;
-        }
-      case 's':
-        Radio.getSameStatus(0);
-        Serial.println(msgStatus, 2);
-        break;
-      case 'o':
-        if (power)
-        {
-          Radio.disableInterrupt();
-          Radio.off();
-          Serial.println(F("Radio powered off."));
-        }
-        else
-        {
-          Radio.on();
-          Radio.enableInterrupt();
-          Serial.println(F("Radio powered on."));
-          Radio.tune();
-        }
-        break;
-      case 'I':
-        getRadioStatus();
-      case 'i':
-        Serial.println(lastIntStatus, 2);
-        break;
-      default:
-        break;
-
-    }
-
-    Serial.flush();
-  }
+  shell.executeIfInput();
 
   checkLightningSensor();
   if (intStatus & SI4707_INTAVL) {
-    getRadioStatus();
+    radioStatus();
   }
   taskTimer.tick();
 
