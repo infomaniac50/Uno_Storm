@@ -145,22 +145,22 @@ void checkLightningSensor()
 
 int setSetting(int argc, char **argv)
 {
-  if (argc <= 0) {
+  if (argc <= 1) {
     Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
     Serial.println(asFlashString(SETTING_NAME_TEXT));
 
     return EXIT_FAILURE;
   }
 
-  if (argc <= 1) {
+  if (argc <= 2) {
     Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
     Serial.println(asFlashString(SETTING_VALUE_TEXT));
 
     return EXIT_FAILURE;
   }
 
-  String argName = String(argv[0]);
-  String argValue = String(argv[1]);
+  String argName = String(argv[1]);
+  String argValue = String(argv[2]);
 
   argName.trim();
   argValue.trim();
@@ -321,15 +321,15 @@ int setSetting(int argc, char **argv)
     int mode = EOF;
     int osc = EOF;
     // set displayOsc <mode> <osc>
-    if (argc < 3) {
+    if (argc < 4) {
       Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
       Serial.println(asFlashString(SETTING_VALUE_TEXT));
 
       return EXIT_FAILURE;
     }
 
-    String argMode = String(argv[1]);
-    String argOsc = String(argv[2]);
+    String argMode = String(argv[2]);
+    String argOsc = String(argv[3]);
     argMode.trim();
     argOsc.trim();
 
@@ -379,14 +379,14 @@ int setSetting(int argc, char **argv)
 
 int getSetting(int argc, char **argv)
 {
-  if (argc <= 0) {
+  if (argc <= 1) {
     Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
     Serial.println(asFlashString(SETTING_NAME_TEXT));
 
     return EXIT_FAILURE;
   }
 
-  String argName = String(argv[0]);
+  String argName = String(argv[1]);
 
   argName.trim();
 
@@ -762,14 +762,14 @@ int radioChannelUp(int /*argc*/ = 0, char** /*argv*/ = NULL) {
 }
 
 int radioVolume(int argc, char **argv) {
-  if (argc <= 0) {
+  if (argc <= 1) {
     Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
     Serial.println(asFlashString(SETTING_VALUE_TEXT));
 
     return EXIT_FAILURE;
   }
 
-  String argValue = String(argv[0]);
+  String argValue = String(argv[1]);
 
   argValue.trim();
 
