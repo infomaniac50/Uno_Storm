@@ -320,7 +320,7 @@ int setSetting(int argc, char **argv)
   {
     int mode = EOF;
     int osc = EOF;
-
+    // set displayOsc <mode> <osc>
     if (argc < 3) {
       Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
       Serial.println(asFlashString(SETTING_VALUE_TEXT));
@@ -328,9 +328,12 @@ int setSetting(int argc, char **argv)
       return EXIT_FAILURE;
     }
 
+    String argMode = String(argv[1]);
     String argOsc = String(argv[2]);
+    argMode.trim();
     argOsc.trim();
 
+    mode = argMode.toInt();
     if (mode < 0 || mode > 1)
     {
       Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
@@ -339,6 +342,7 @@ int setSetting(int argc, char **argv)
       return EXIT_FAILURE;
     }
 
+    osc = argOsc.toInt();
     if (osc < 1 || osc > 3)
     {
       Serial.print(asFlashString(INVALID_ARGUMENT_VALUE_TEXT));
@@ -352,6 +356,10 @@ int setSetting(int argc, char **argv)
       sensor.detachInterruptPin();
     }
 
+    // This will send the frequency of the oscillators to the IRQ pin.
+    //  osc = 1 = TRCO - System RCO at 32.768kHz
+    //  osc = 2 = SRCO - Timer RCO Oscillators 1.1MHz
+    //  osc = 3 = LCO  - Frequency of the Antenna
     SparkFun_AS3935 rawSensor = sensor.getSensor();
     rawSensor.displayOscillator((bool)mode, osc);
 
