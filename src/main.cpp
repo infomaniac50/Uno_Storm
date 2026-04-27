@@ -135,11 +135,12 @@ void checkLightningSensor()
     SensorEvent event;
     sensor.getSensorEvent(&event);
 
-    Serial.print(event.type);
-    Serial.print(',');
-    Serial.print(event.distance);
-    Serial.print(',');
-    Serial.print(event.energy);
+    if (event.type == LIGHTNING) {
+      Serial.print(F("Lightning "));
+      Serial.print(distanceToString(event.distance));
+      Serial.print(' ');
+      Serial.println(event.energy);
+    }
   }
 }
 

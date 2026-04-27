@@ -21,44 +21,44 @@ enum StormFrontDistance : uint8_t
   STORM_IS_OVERHEAD = 0b000001
 };
 
-inline const char *distanceToString(uint8_t distance)
+inline const __FlashStringHelper* distanceToString(uint8_t distance)
 {
   switch (distance)
   {
     case StormFrontDistance::OUT_OF_RANGE:
-      return "out of range";
+      return F("out of range");
     case StormFrontDistance::DISTANCE_40KM:
-      return "40 km away";
+      return F("40 km away");
     case StormFrontDistance::DISTANCE_37KM:
-      return "37 km away";
+      return F("37 km away");
     case StormFrontDistance::DISTANCE_34KM:
-      return "34 km away";
+      return F("34 km away");
     case StormFrontDistance::DISTANCE_31KM:
-      return "31 km away";
+      return F("31 km away");
     case StormFrontDistance::DISTANCE_27KM:
-      return "27 km away";
+      return F("27 km away");
     case StormFrontDistance::DISTANCE_24KM:
-      return "24 km away";
+      return F("24 km away");
     case StormFrontDistance::DISTANCE_20KM:
-      return "20 km away";
+      return F("20 km away");
     case StormFrontDistance::DISTANCE_17KM:
-      return "17 km away";
+      return F("17 km away");
     case StormFrontDistance::DISTANCE_14KM:
-      return "14 km away";
+      return F("14 km away");
     case StormFrontDistance::DISTANCE_12KM:
-      return "12 km away";
+      return F("12 km away");
     case StormFrontDistance::DISTANCE_10KM:
-      return "10 km away";
+      return F("10 km away");
     case StormFrontDistance::DISTANCE_8KM:
-      return "8 km away";
+      return F("8 km away");
     case StormFrontDistance::DISTANCE_6KM:
-      return "6 km away";
+      return F("6 km away");
     case StormFrontDistance::DISTANCE_5KM:
-      return "5 km away";
+      return F("5 km away");
     case StormFrontDistance::STORM_IS_OVERHEAD:
-      return "overhead";
+      return F("overhead");
     default:
-      return "invalid";
+      return F("invalid");
   }
 }
 
