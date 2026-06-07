@@ -521,6 +521,87 @@ int radioLastStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
   return EXIT_SUCCESS;
 }
 
+int radioChannelDown(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  if (channel <= SI4707_WB_MIN_FREQUENCY) {
+    return EXIT_FAILURE;
+  }
+  Serial.println(F("Channel down."));
+  channel -= SI4707_WB_CHANNEL_SPACING;
+  Radio.tune();
+
+  return EXIT_SUCCESS;
+}
+
+int radioChannelUp(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  if (channel >= SI4707_WB_MAX_FREQUENCY) {
+    return EXIT_FAILURE;
+  }
+  Serial.println(F("Channel up."));
+  channel += SI4707_WB_CHANNEL_SPACING;
+  Radio.tune();
+
+  return EXIT_SUCCESS;
+}
+
+int radioVolume(int argc, char **argv) {
+  if (argc <= 1) {
+    Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
+    Serial.println(asFlashString(SETTING_VALUE_TEXT));
+
+    return EXIT_FAILURE;
+  }
+
+  String argValue = String(argv[1]);
+
+  argValue.trim();
+
+  Radio.setVolume(argValue.toInt());
+  Serial.print(F("Volume: "));
+  Serial.println(volume);
+
+  return EXIT_SUCCESS;
+}
+
+int radioMute(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  if (mute)
+  {
+    Radio.setMute(SI4707_OFF);
+    Serial.println(F("Mute: Off"));
+  }
+  else
+  {
+    Radio.setMute(SI4707_ON);
+    Serial.println(F("Mute: On"));
+  }
+
+  return EXIT_SUCCESS;
+}
+
+int radioSameStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  Radio.getSameStatus(SI4707_CHECK);
+  printlnByteBinary(msgStatus);
+
+  return EXIT_SUCCESS;
+}
+
+int radioPower(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+  if (power)
+  {
+    Radio.disableInterrupt();
+    Radio.off();
+    Serial.println(F("Radio powered off."));
+  }
+  else
+  {
+    Radio.on();
+    Radio.enableInterrupt();
+    Serial.println(F("Radio powered on."));
+    Radio.tune();
+  }
+
+  return EXIT_SUCCESS;
+}
+
 //
 //  Status bits are processed here.
 //
@@ -735,87 +816,6 @@ int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
     intStatus &= ~SI4707_ERRINT;
     Serial.println(F("An error occured!"));
     Serial.println();
-  }
-
-  return EXIT_SUCCESS;
-}
-
-int radioChannelDown(int /*argc*/ = 0, char** /*argv*/ = NULL) {
-  if (channel <= SI4707_WB_MIN_FREQUENCY) {
-    return EXIT_FAILURE;
-  }
-  Serial.println(F("Channel down."));
-  channel -= SI4707_WB_CHANNEL_SPACING;
-  Radio.tune();
-
-  return EXIT_SUCCESS;
-}
-
-int radioChannelUp(int /*argc*/ = 0, char** /*argv*/ = NULL) {
-  if (channel >= SI4707_WB_MAX_FREQUENCY) {
-    return EXIT_FAILURE;
-  }
-  Serial.println(F("Channel up."));
-  channel += SI4707_WB_CHANNEL_SPACING;
-  Radio.tune();
-
-  return EXIT_SUCCESS;
-}
-
-int radioVolume(int argc, char **argv) {
-  if (argc <= 1) {
-    Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
-    Serial.println(asFlashString(SETTING_VALUE_TEXT));
-
-    return EXIT_FAILURE;
-  }
-
-  String argValue = String(argv[1]);
-
-  argValue.trim();
-
-  Radio.setVolume(argValue.toInt());
-  Serial.print(F("Volume: "));
-  Serial.println(volume);
-
-  return EXIT_SUCCESS;
-}
-
-int radioMute(int /*argc*/ = 0, char** /*argv*/ = NULL) {
-  if (mute)
-  {
-    Radio.setMute(SI4707_OFF);
-    Serial.println(F("Mute: Off"));
-  }
-  else
-  {
-    Radio.setMute(SI4707_ON);
-    Serial.println(F("Mute: On"));
-  }
-
-  return EXIT_SUCCESS;
-}
-
-int radioSameStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
-  Radio.getSameStatus(SI4707_CHECK);
-  printlnByteBinary(msgStatus);
-
-  return EXIT_SUCCESS;
-}
-
-int radioPower(int /*argc*/ = 0, char** /*argv*/ = NULL) {
-  if (power)
-  {
-    Radio.disableInterrupt();
-    Radio.off();
-    Serial.println(F("Radio powered off."));
-  }
-  else
-  {
-    Radio.on();
-    Radio.enableInterrupt();
-    Serial.println(F("Radio powered on."));
-    Radio.tune();
   }
 
   return EXIT_SUCCESS;
