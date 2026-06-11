@@ -5,7 +5,7 @@ struct SensorEvent
 {
   uint8_t type;
   uint8_t distance;
-  long energy;
+  uint32_t energy;
 };
 
 #endif
