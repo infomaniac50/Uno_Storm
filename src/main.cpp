@@ -501,8 +501,12 @@ int radioSeekStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
 int radioRsqStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
   Radio.getRsqStatus(SI4707_INTACK);
 
+  // Might be some kind of tuning error metric.
+  // As in the PLL locked to a carrier that's a little off from what we asked for.
+  // FREQOFF[7:0] Frequency Offset.
+  // Signed frequency offset in kHz.
   Serial.print(F("FREQOFF: "));
-  Serial.print(freqoff);
+  Serial.print((long) freqoff, 10);
   radioRssiSnrStatus();
 
   return EXIT_SUCCESS;
