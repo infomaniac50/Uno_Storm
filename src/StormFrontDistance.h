@@ -1,6 +1,10 @@
 #ifndef _STORM_FRONT_DISTANCE_H_
 #define _STORM_FRONT_DISTANCE_H_
 
+// The value for each key between OUT_OF_RANGE and STORM_IS_OVERHEAD is
+// the number in each key. 0b101000 = 40 and 0b000101 = 5
+// You can do math on the values if you want,
+// as long as the values are not 0b111111 or 0b000001
 enum StormFrontDistance : uint8_t
 {
   OUT_OF_RANGE = 0b111111,
