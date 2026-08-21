@@ -45,6 +45,7 @@ struct SensorSettings
   bool  operator != (const SensorSettings &rhs) const {
     return ! (*this == rhs);
   }
+  #ifdef OPERATOR_MODE
   // Print method
   void print (const char *prefix = "", Print & out = Serial) const {
     out.print (prefix);
@@ -62,5 +63,6 @@ struct SensorSettings
     out.write (' ');
     out.println (reportDisturber);
   }
+  #endif
 };
 #endif

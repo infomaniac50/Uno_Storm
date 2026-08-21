@@ -21,7 +21,8 @@ enum StormFrontDistance : uint8_t
   STORM_IS_OVERHEAD = 0b000001
 };
 
-inline const __FlashStringHelper* distanceToString(uint8_t distance)
+#ifdef OPERATOR_MODE
+inline const __FlashStringHelper *distanceToString(uint8_t distance)
 {
   switch (distance)
   {
@@ -61,5 +62,5 @@ inline const __FlashStringHelper* distanceToString(uint8_t distance)
       return F("invalid");
   }
 }
-
+#endif
 #endif

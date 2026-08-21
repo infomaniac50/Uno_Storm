@@ -9,21 +9,24 @@
   Date: July, 2019
   License: This code is public domain but you buy me a beer if you use this and we meet someday (Beerware license).
 */
+#include "SI4707.h"
+#include "SparkFun_AS3935.h"
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
-#include "SparkFun_AS3935.h"
-#include "SI4707.h"
 
-#include <LightningSensor.h>
-#include <String.h>
-#include <arduino-timer.h>
-#include <StormFrontDistance.h>
-#include <SensorSettings.h>
 #include <EepromSecureData.h>
-#include <SimpleSerialShell.h>
+#include <LightningSensor.h>
+#include <PacketTypes.h>
+#include <SensorSettings.h>
+#include <StormFrontDistance.h>
+#include <arduino-timer.h>
 
-#define asFlashString(s) (__FlashStringHelper*)(s)
+#ifdef OPERATOR_MODE
+#include <SimpleSerialShell.h>
+#include <String.h>
+
+#define asFlashString(s) (__FlashStringHelper *)(s)
 
 static const char MISSING_ARGUMENT_TEXT[] PROGMEM = "Missing Argument: ";
 static const char SETTING_NAME_TEXT[] PROGMEM = "Setting name";
@@ -49,6 +52,18 @@ static const char REPORT_DISTURBER_TEXT[] PROGMEM = "reportDisturber";
 static const char ENTER_NUMBER_TRUE_OR_FALSE_TEXT[] PROGMEM = "You must enter 1 or 0, indicating true or false respectively.";
 
 static const char DISPLAY_OSC_TEXT[] PROGMEM = "displayOsc";
+#endif
+
+#define ASSERT(x)                                                                                                                                                                  \
+  do                                                                                                                                                                               \
+  {                                                                                                                                                                                \
+    if (!(x))                                                                                                                                                                      \
+    {                                                                                                                                                                              \
+      setErrorStatus(true);                                                                                                                                                        \
+      while (1)                                                                                                                                                                    \
+        taskTimer.tick();                                                                                                                                                          \
+    }                                                                                                                                                                              \
+  } while (0)
 
 SensorSettings sensorSettings;
 EepromSecureData<SensorSettings> settingsStorage(sensorSettings);
@@ -57,6 +72,7 @@ LightningSensor sensor;
 
 Timer<2> taskTimer; // create a timer with two tasks
 
+#ifdef OPERATOR_MODE
 size_t printlnByteBinary(uint8_t n)
 {
   char buf[2 + 8 + 1]; // "0b" + 8 bits + '\0'
@@ -65,7 +81,8 @@ size_t printlnByteBinary(uint8_t n)
   *str++ = '0';
   *str++ = 'b';
 
-  for (int i = 7; i >= 0; --i) {
+  for (int i = 7; i >= 0; --i)
+  {
     *str++ = (n & (1 << i)) ? '1' : '0';
   }
 
@@ -73,6 +90,7 @@ size_t printlnByteBinary(uint8_t n)
 
   return Serial.println(buf);
 }
+#endif
 
 bool toggleErrorLed(void *)
 {
@@ -107,21 +125,25 @@ void setErrorStatus(bool isErrored = true)
 
 Timer<>::Task sameFlushTask = 0;
 
-void stopSameFlushTimer() {
-  if (sameFlushTask) {
+void stopSameFlushTimer()
+{
+  if (sameFlushTask)
+  {
     taskTimer.cancel(sameFlushTask);
   }
   sameFlushTask = 0;
 }
 
-bool checkSameFlush(void *) {
+bool checkSameFlush(void *)
+{
   stopSameFlushTimer();
   Radio.sameFlush();
 
   return true;
 }
 
-void startSameFlushTimer() {
+void startSameFlushTimer()
+{
   stopSameFlushTimer();
   sameFlushTask = taskTimer.in(SI4707_SAME_TIME_OUT * 1000, checkSameFlush);
 }
@@ -135,25 +157,46 @@ void checkLightningSensor()
     SensorEvent event;
     sensor.getSensorEvent(&event);
 
-    if (event.type == LIGHTNING) {
+    if (event.type == LIGHTNING)
+    {
+#ifdef OPERATOR_MODE
       Serial.print(F("Lightning "));
       Serial.print(distanceToString(event.distance));
       Serial.print(' ');
       Serial.println(event.energy);
+#else
+      LightningPacket payload = {
+          .interruptType = event.type,
+          .distance = event.distance,
+          .energy = event.energy,
+      };
+      UnoStormPacketHeader header = {
+          .packetType = PacketType::LIGHTNING_PACKET,
+          .payloadSize = sizeof(payload),
+      };
+      UnoStormPacket packet = {
+          .header = header,
+          .payload = reinterpret_cast<const uint8_t *>(&payload),
+      };
+      sendPacket(packet);
+#endif
     }
   }
 }
 
+#ifdef OPERATOR_MODE
 int setSetting(int argc, char **argv)
 {
-  if (argc <= 1) {
+  if (argc <= 1)
+  {
     Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
     Serial.println(asFlashString(SETTING_NAME_TEXT));
 
     return EXIT_FAILURE;
   }
 
-  if (argc <= 2) {
+  if (argc <= 2)
+  {
     Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
     Serial.println(asFlashString(SETTING_VALUE_TEXT));
 
@@ -322,7 +365,8 @@ int setSetting(int argc, char **argv)
     int mode = EOF;
     int osc = EOF;
     // set displayOsc <mode> <osc>
-    if (argc < 4) {
+    if (argc < 4)
+    {
       Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
       Serial.println(asFlashString(SETTING_VALUE_TEXT));
 
@@ -380,7 +424,8 @@ int setSetting(int argc, char **argv)
 
 int getSetting(int argc, char **argv)
 {
-  if (argc <= 1) {
+  if (argc <= 1)
+  {
     Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
     Serial.println(asFlashString(SETTING_NAME_TEXT));
 
@@ -400,7 +445,8 @@ int getSetting(int argc, char **argv)
     {
       Serial.println(asFlashString(INDOOR_TEXT));
     }
-    else if (sensorSettings.sensorLocation == OUTDOOR) {
+    else if (sensorSettings.sensorLocation == OUTDOOR)
+    {
       Serial.println(asFlashString(OUTDOOR_TEXT));
     }
 
@@ -474,23 +520,27 @@ int getSetting(int argc, char **argv)
   return EXIT_FAILURE;
 }
 
-int saveSettings(int /*argc*/ = 0, char** /*argv*/ = NULL)
+int saveSettings(int /*argc*/ = 0, char ** /*argv*/ = NULL)
 {
   settingsStorage = sensorSettings;
 
   return settingsStorage.save() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+#endif
 
 uint8_t lastIntStatus;
 
-void radioRssiSnrStatus() {
+#ifdef OPERATOR_MODE
+void radioRssiSnrStatus()
+{
   Serial.print(F("  RSSI: "));
   Serial.print(rssi);
   Serial.print(F("  SNR: "));
   Serial.println(snr);
 }
 
-int radioSeekStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+int radioSeekStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
   Serial.print(F("FREQ: "));
   Serial.print(frequency, 3);
   radioRssiSnrStatus();
@@ -498,7 +548,8 @@ int radioSeekStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
   return EXIT_SUCCESS;
 }
 
-int radioRsqStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+int radioRsqStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
   Radio.getRsqStatus(SI4707_INTACK);
 
   // Might be some kind of tuning error metric.
@@ -506,51 +557,70 @@ int radioRsqStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
   // FREQOFF[7:0] Frequency Offset.
   // Signed frequency offset in kHz.
   Serial.print(F("FREQOFF: "));
-  Serial.print((long) freqoff, 10);
+  Serial.print((long)freqoff, 10);
   radioRssiSnrStatus();
 
   return EXIT_SUCCESS;
 }
+#endif
 
-int radioScan(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+int radioScan(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
+#ifdef OPERATOR_MODE
   Serial.println(F("Scanning....."));
+#endif
   Radio.scan();
 
   return EXIT_SUCCESS;
 }
 
-int radioLastStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+int radioLastStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
+#ifdef OPERATOR_MODE
   printlnByteBinary(lastIntStatus);
+#endif
 
   return EXIT_SUCCESS;
 }
 
-int radioChannelDown(int /*argc*/ = 0, char** /*argv*/ = NULL) {
-  if (channel <= SI4707_WB_MIN_FREQUENCY) {
+int radioChannelDown(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
+  if (channel <= SI4707_WB_MIN_FREQUENCY)
+  {
     return EXIT_FAILURE;
   }
+#ifdef OPERATOR_MODE
   Serial.println(F("Channel down."));
+#endif
   channel -= SI4707_WB_CHANNEL_SPACING;
   Radio.tune();
 
   return EXIT_SUCCESS;
 }
 
-int radioChannelUp(int /*argc*/ = 0, char** /*argv*/ = NULL) {
-  if (channel >= SI4707_WB_MAX_FREQUENCY) {
+int radioChannelUp(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
+  if (channel >= SI4707_WB_MAX_FREQUENCY)
+  {
     return EXIT_FAILURE;
   }
+#ifdef OPERATOR_MODE
   Serial.println(F("Channel up."));
+#endif
   channel += SI4707_WB_CHANNEL_SPACING;
   Radio.tune();
 
   return EXIT_SUCCESS;
 }
 
-int radioVolume(int argc, char **argv) {
-  if (argc <= 1) {
+int radioVolume(int argc, char **argv)
+{
+  if (argc <= 1)
+  {
+#ifdef OPERATOR_MODE
     Serial.print(asFlashString(MISSING_ARGUMENT_TEXT));
     Serial.println(asFlashString(SETTING_VALUE_TEXT));
+#endif
 
     return EXIT_FAILURE;
   }
@@ -560,46 +630,62 @@ int radioVolume(int argc, char **argv) {
   argValue.trim();
 
   Radio.setVolume(argValue.toInt());
+#ifdef OPERATOR_MODE
   Serial.print(F("Volume: "));
   Serial.println(volume);
+#endif
 
   return EXIT_SUCCESS;
 }
 
-int radioMute(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+int radioMute(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
   if (mute)
   {
     Radio.setMute(SI4707_OFF);
+#ifdef OPERATOR_MODE
     Serial.println(F("Mute: Off"));
+#endif
   }
   else
   {
     Radio.setMute(SI4707_ON);
+#ifdef OPERATOR_MODE
     Serial.println(F("Mute: On"));
+#endif
   }
 
   return EXIT_SUCCESS;
 }
 
-int radioSameStatus(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+int radioSameStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
   Radio.getSameStatus(SI4707_CHECK);
+
+#ifdef OPERATOR_MODE
   printlnByteBinary(msgStatus);
+#endif
 
   return EXIT_SUCCESS;
 }
 
-int radioPower(int /*argc*/ = 0, char** /*argv*/ = NULL) {
+int radioPower(int /*argc*/ = 0, char ** /*argv*/ = NULL)
+{
   if (power)
   {
     Radio.disableInterrupt();
     Radio.off();
+#ifdef OPERATOR_MODE
     Serial.println(F("Radio powered off."));
+#endif
   }
   else
   {
     Radio.on();
     Radio.enableInterrupt();
+#ifdef OPERATOR_MODE
     Serial.println(F("Radio powered on."));
+#endif
     Radio.tune();
   }
 
@@ -609,34 +695,75 @@ int radioPower(int /*argc*/ = 0, char** /*argv*/ = NULL) {
 //
 //  Status bits are processed here.
 //
-int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
+int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
 {
   Radio.getIntStatus();
   lastIntStatus = intStatus;
 
   if (intStatus & SI4707_STCINT)
   {
-    Radio.getTuneStatus(SI4707_INTACK);  //  Using SI4707_INTACK clears SI4707_STCINT, SI4707_CHECK preserves it.
+    Radio.getTuneStatus(SI4707_INTACK); //  Using SI4707_INTACK clears SI4707_STCINT, SI4707_CHECK preserves it.
+#ifdef OPERATOR_MODE
     radioSeekStatus();
-    Radio.sameFlush();             //  This should be done after any tune function.
-    //intStatus |= SI4707_RSQINT;         //  We can force it to get rsqStatus on any tune.
+#else
+    SeekTuneCompletePacket payload;
+    payload.weatherRadioInterruptType = WeatherRadioInterruptType::WB_STC_INTERRUPT;
+    String frequencyString(frequency, 3);
+    frequencyString.toCharArray(payload.frequency, sizeof(payload.frequency));
+    payload.rssi = rssi;
+    payload.snr = snr;
+
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::WEATHER_RADIO_PACKET,
+        .payloadSize = sizeof(payload),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+#endif
+    Radio.sameFlush(); //  This should be done after any tune function.
+    // intStatus |= SI4707_RSQINT;  //  We can force it to get rsqStatus on any tune.
   }
 
   if (intStatus & SI4707_RSQINT)
   {
+#ifdef OPERATOR_MODE
     radioRsqStatus();
+#else
+    Radio.getRsqStatus(SI4707_INTACK);
+
+    ReceivedSignalQualityPacket payload = {
+        .weatherRadioInterruptType = WeatherRadioInterruptType::WB_RSQ_INTERRUPT,
+        .rssi = rssi,
+        .snr = snr,
+        .freqoff = freqoff,
+    };
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::WEATHER_RADIO_PACKET,
+        .payloadSize = sizeof(payload),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+#endif
   }
 
   if (intStatus & SI4707_SAMEINT)
   {
     Radio.getSameStatus(SI4707_INTACK);
 
+#ifdef OPERATOR_MODE
     printlnByteBinary(intStatus);
     printlnByteBinary(msgStatus);
     printlnByteBinary(sameStatus);
     printlnByteBinary(sameState);
     Serial.println(sameLength);
     Serial.println(sameHeaderCount);
+#endif
 
     // Response
     // | Bit    | D7  | D6  | D5 | D4 | D3     | D2      | D1     | D0     |
@@ -654,14 +781,40 @@ int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
     {
       Radio.sameFlush();
       stopSameFlushTimer();
+#ifdef OPERATOR_MODE
       Serial.println(F("EOM detected."));
+#else
+      SameStatusPacket payload = {.sameInterruptType = SameInterruptType::WB_SAME_END_OF_MESSAGE};
+      UnoStormPacketHeader header = {
+          .packetType = PacketType::SAME_STATUS_PACKET,
+          .payloadSize = sizeof(payload),
+      };
+      UnoStormPacket packet = {
+          .header = header,
+          .payload = reinterpret_cast<const uint8_t *>(&payload),
+      };
+      sendPacket(packet);
+#endif
       //  More application specific code could go here. (Mute audio, turn something on/off, etc.)
     }
 
     if (sameStatus & SI4707_PREDET)
     {
       startSameFlushTimer();
+#ifdef OPERATOR_MODE
       Serial.println(F("Preamble detected."));
+#else
+      SameStatusPacket payload = {.sameInterruptType = SameInterruptType::WB_SAME_PREAMBLE};
+      UnoStormPacketHeader header = {
+          .packetType = PacketType::SAME_STATUS_PACKET,
+          .payloadSize = sizeof(payload),
+      };
+      UnoStormPacket packet = {
+          .header = header,
+          .payload = reinterpret_cast<const uint8_t *>(&payload),
+      };
+      sendPacket(packet);
+#endif
     }
 
     // If a message is available and not already used,
@@ -673,11 +826,13 @@ int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
 
     if (msgStatus & SI4707_MSGPAR)
     {
-      msgStatus &= ~SI4707_MSGPAR;                         // Clear the parse status, so that we don't print it again.
+      msgStatus &= ~SI4707_MSGPAR; // Clear the parse status, so that we don't print it again.
+#ifdef OPERATOR_MODE
       Serial.print(F("Originator: "));
       Serial.println(sameOriginatorName);
       Serial.print(F("Event: "));
       Serial.println(sameEventName);
+
       // | Event Code | Event Description                                           | Event Level |
       // |------------|-------------------------------------------------------------|-------------|
       // | ADR        | Administrative Message                                      | ADV         |
@@ -763,23 +918,86 @@ int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
       Serial.print(F("Day: "));
       Serial.println(sameDay);
       Serial.print(F("Time: "));
-      if (sameHour < 10) {
+      if (sameHour < 10)
+      {
         Serial.print('0');
       }
       Serial.print(sameHour);
       Serial.print(':');
-      if (sameMinute < 10) {
+      if (sameMinute < 10)
+      {
         Serial.print('0');
       }
       Serial.println(sameMinute);
       Serial.print(F("Callsign: "));
       Serial.println(sameCallSign);
       Serial.println();
+#else
+      SameMessagePacket payload = {
+          .sameInterruptType = SameInterruptType::WB_SAME_MESSAGE_RECEIVED,
+          .originatorNameSize = static_cast<uint8_t>(strlen(sameOriginatorName)),
+          .originatorName = sameOriginatorName,
+          .eventNameSize = static_cast<uint8_t>(strlen(sameEventName)),
+          .eventName = sameEventName,
+          .callSignSize = static_cast<uint8_t>(strlen(sameCallSign)),
+          .callSign = sameCallSign,
+          .locations = sameLocations,
+          .locationCodes = sameLocationCodes,
+          .duration = sameDuration,
+          .day = sameDay,
+          .hour = sameHour,
+          .minute = sameMinute,
+      };
+      UnoStormPacketHeader header = {
+          .packetType = PacketType::SAME_MESSAGE_PACKET,
+          // Don't use sizeof on structs with pointers
+          .payloadSize = 1 +                               // sameInterruptType:uint8_t
+                         1U + payload.originatorNameSize + // originatorNameSize:uint8_t + (originatorName:uint8_t * originatorNameSize)
+                         1U + payload.eventNameSize +      // eventNameSize:uint8_t + (eventName:uint8_t * eventNameSize)
+                         1U + payload.callSignSize +       // callSignSize:uint8_t + (callSign:uint8_t * callSignSize)
+                         1U + (payload.locations * 4) +    // locationa:uint8_t + (locationCodes:uint32_t * locationCodesSize)
+                         2U +                              // duration:uint16_t
+                         2U +                              // day:uint16_t
+                         1U +                              // hour:uint8_t
+                         1U                                // minute:uint8_t
+          ,
+      };
+      UnoStormPacket packet;
+      packet.header = header;
+      startPacket(header);
+
+      size_t bytesSent = 0;
+
+      bytesSent += Serial.write(payload.sameInterruptType);
+      bytesSent += Serial.write(payload.originatorNameSize);
+      bytesSent += sendBuffer(payload.originatorNameSize, reinterpret_cast<const uint8_t *>(payload.originatorName));
+      bytesSent += Serial.write(payload.eventNameSize);
+      bytesSent += sendBuffer(payload.eventNameSize, reinterpret_cast<const uint8_t *>(payload.eventName));
+      bytesSent += Serial.write(payload.callSignSize);
+      bytesSent += sendBuffer(payload.callSignSize, reinterpret_cast<const uint8_t *>(payload.callSign));
+      bytesSent += Serial.write(payload.locations);
+
+      for (uint8_t i = 0; i < payload.locations; i++)
+      {
+        bytesSent += sendBuffer(4, reinterpret_cast<const uint8_t *>(&(payload.locationCodes[i])));
+      }
+
+      bytesSent += sendBuffer(2, reinterpret_cast<const uint8_t *>(&(payload.duration)));
+      bytesSent += sendBuffer(2, reinterpret_cast<const uint8_t *>(&(payload.day)));
+      bytesSent += Serial.write(payload.hour);
+      bytesSent += Serial.write(payload.minute);
+
+      // TODO: Remove later when you're confident this code is correct.
+      ASSERT(bytesSent == header.payloadSize);
+
+#endif
     }
 
-    if (msgStatus & SI4707_MSGPUR)   //  Signals that the third header has been received.
+    if (msgStatus & SI4707_MSGPUR) //  Signals that the third header has been received.
     {
+#ifdef OPERATOR_MODE
       Serial.println(F("Third Header Received"));
+#endif
       stopSameFlushTimer();
       Radio.sameFlush();
     }
@@ -789,7 +1007,8 @@ int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
   {
     Radio.getAsqStatus(SI4707_INTACK);
 
-    if (sameWat != asqStatus) {
+    if (sameWat != asqStatus)
+    {
       if (asqStatus == 0x01)
       {
         // New Alert Tone
@@ -798,16 +1017,48 @@ int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
         stopSameFlushTimer();
         Radio.sameFlush();
 
+#ifdef OPERATOR_MODE
         Serial.println(F("WAT is on."));
         Serial.println();
+#else
+        AlertTonePacket payload = {
+            .weatherRadioInterruptType = WeatherRadioInterruptType::WB_ALERT_TONE_INTERRUPT,
+            .alertTone = 1,
+        };
+        UnoStormPacketHeader header = {
+            .packetType = PacketType::WEATHER_RADIO_PACKET,
+            .payloadSize = sizeof(AlertTonePacket),
+        };
+        UnoStormPacket packet = {
+            .header = header,
+            .payload = reinterpret_cast<const uint8_t *>(&payload),
+        };
+        sendPacket(packet);
+#endif
         //  More application specific code could go here.  (Unmute audio, turn something on/off, etc.)
       }
 
       if (asqStatus == 0x02)
       {
         Radio.setProperty(SI4707_WB_ASQ_INT_SOURCE, (SI4707_ALERTONIEN));
+#ifdef OPERATOR_MODE
         Serial.println(F("WAT is off."));
         Serial.println();
+#else
+        AlertTonePacket payload = {
+            .weatherRadioInterruptType = WeatherRadioInterruptType::WB_ALERT_TONE_INTERRUPT,
+            .alertTone = 0,
+        };
+        UnoStormPacketHeader header = {
+            .packetType = PacketType::WEATHER_RADIO_PACKET,
+            .payloadSize = sizeof(AlertTonePacket),
+        };
+        UnoStormPacket packet = {
+            .header = header,
+            .payload = reinterpret_cast<const uint8_t *>(&payload),
+        };
+        sendPacket(packet);
+#endif
         //  More application specific code could go here.  (Mute audio, turn something on/off, etc.)
       }
 
@@ -818,8 +1069,23 @@ int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
   if (intStatus & SI4707_ERRINT)
   {
     intStatus &= ~SI4707_ERRINT;
+#ifdef OPERATOR_MODE
     Serial.println(F("An error occured!"));
     Serial.println();
+#else
+    ErrorPacket payload = {
+        .weatherRadioInterruptType = WeatherRadioInterruptType::WB_ERROR_INTERRUPT,
+    };
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::WEATHER_RADIO_PACKET,
+        .payloadSize = sizeof(ErrorPacket),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+#endif
   }
 
   return EXIT_SUCCESS;
@@ -829,10 +1095,11 @@ int radioStatus(int /*argc*/ = 0, char** /*argv*/ = NULL)
 //  The End.
 //
 
+#ifdef OPERATOR_MODE
 //
 //  Prints the Function Menu.
 //
-int showMenu(int /*argc*/ = 0, char** /*argv*/ = NULL)
+int showMenu(int /*argc*/ = 0, char ** /*argv*/ = NULL)
 {
   shell.printHelp(0, NULL);
 
@@ -852,33 +1119,43 @@ int showMenu(int /*argc*/ = 0, char** /*argv*/ = NULL)
 
   return EXIT_SUCCESS;
 }
+#endif
 
 void setup()
 {
   // Initialize serial and wait for port to open:
   Serial.begin(115200);
 
+#ifdef OPERATOR_MODE
   Serial.println(F("Uno Storm"));
+#endif
   settingsStorage.load();
   sensorSettings = settingsStorage;
-
+#ifdef OPERATOR_MODE
   Serial.print(F("Starting Radio"));
-
+#endif
   pinMode(LED_BUILTIN, OUTPUT);
 
+#ifdef OPERATOR_MODE
   Serial.print('.');
-
+#endif
   Radio.begin();
+#ifdef OPERATOR_MODE
   Serial.print('.');
-  Radio.patch();          //  Use this one to to include the 1050 Hz patch.
+#endif
+  Radio.patch(); //  Use this one to to include the 1050 Hz patch.
+#ifdef OPERATOR_MODE
   Serial.print('.');
+#endif
   // Radio.on();           //  Use this one if not using the patch.
-  //Radio.getRevision();  //  Only captured on the logic analyzer - not displayed.
+  // Radio.getRevision();  //  Only captured on the logic analyzer - not displayed.
   //
   //  All useful interrupts are enabled here.
   //
   Radio.setProperty(SI4707_GPO_IEN, (SI4707_ERRIEN | SI4707_RSQIEN | SI4707_SAMEIEN | SI4707_ASQIEN | SI4707_STCIEN));
+#ifdef OPERATOR_MODE
   Serial.print('.');
+#endif
   //
   //  RSQ Interrupt Sources.
   //
@@ -886,36 +1163,54 @@ void setup()
   // Radio.setProperty(SI4707_WB_RSQ_SNR_LOW_THRESHOLD, 0x0001);    // 1 dBuV for testing
   // Radio.setProperty(SI4707_WB_RSQ_RSSI_HIGH_THRESHOLD, 0x004D);  // -30 dBm for testing
   // Radio.setProperty(SI4707_WB_RSQ_RSSI_LOW_THRESHOLD, 0x0007);   // -100 dBm for testing
-  //Radio.setProperty(SI4707_WB_RSQ_INT_SOURCE, (SI4707_SNRHIEN | SI4707_SNRLIEN | SI4707_RSSIHIEN | SI4707_RSSILIEN));
+  // Radio.setProperty(SI4707_WB_RSQ_INT_SOURCE, (SI4707_SNRHIEN | SI4707_SNRLIEN | SI4707_RSSIHIEN | SI4707_RSSILIEN));
   //
   //  SAME Interrupt Sources.
   //
   Radio.setProperty(SI4707_WB_SAME_INTERRUPT_SOURCE, (SI4707_EOMDETIEN | SI4707_HDRRDYIEN));
+#ifdef OPERATOR_MODE
   Serial.print('.');
+#endif
 
   //
   //  ASQ Interrupt Sources.
   //
   Radio.setProperty(SI4707_WB_ASQ_INT_SOURCE, (SI4707_ALERTONIEN));
+#ifdef OPERATOR_MODE
   Serial.print('.');
+#endif
   //
   //  Tune to the desired frequency.
   //
-  Radio.tune(162550);  //  6 digits only.
+  Radio.tune(162550); //  6 digits only.
 
+#ifdef OPERATOR_MODE
   Serial.println(F("Done"));
 
   Serial.println(F("Starting Lightning Sensor"));
+#else
+  // Prefix the boot message from the Sparkfun library
+  {
+    // sensor.begin writes "Calibrating Oscillators\r\n" to Serial
+    UnoStormPacketHeader header = {.packetType = PacketType::BOOT_MESSAGE, .payloadSize = 25U};
+    startPacket(header);
+  }
 
-  if (sensor.begin(sensorSettings) < 0) {
+#endif
+  if (sensor.begin(sensorSettings) < 0)
+  {
+#ifdef OPERATOR_MODE
     Serial.println(F("Failed"));
-    while (1) {
+#endif
+    while (1)
+    {
       delay(100);
     }
   }
 
   Radio.enableInterrupt();
 
+#ifdef OPERATOR_MODE
   shell.attach(Serial);
   shell.addCommand(F("save Save settings to non-volatile storage."), saveSettings);
   shell.addCommand(F("get <name> Get a setting."), getSetting);
@@ -939,16 +1234,208 @@ void setup()
   shell.addCommand(F("radioLastStatus Print last interrupt status"), radioLastStatus);
 
   Serial.println(F("Startup Complete"));
+#endif
+
+#ifdef TEST_MODE
+  {
+    SensorEvent event = {.type = LIGHTNING, .distance = STORM_IS_OVERHEAD, .energy = 0xDEAD};
+    LightningPacket payload = {
+        .interruptType = event.type,
+        .distance = event.distance,
+        .energy = event.energy,
+    };
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::LIGHTNING_PACKET,
+        .payloadSize = sizeof(payload),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+  }
+  {
+    Radio.getIntStatus();
+    lastIntStatus = intStatus;
+    Radio.getTuneStatus(SI4707_INTACK);
+    SeekTuneCompletePacket payload;
+    payload.weatherRadioInterruptType = WeatherRadioInterruptType::WB_STC_INTERRUPT;
+    String frequencyString(frequency, 3);
+    frequencyString.toCharArray(payload.frequency, sizeof(payload.frequency));
+    payload.rssi = rssi;
+    payload.snr = snr;
+
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::WEATHER_RADIO_PACKET,
+        .payloadSize = sizeof(payload),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+  }
+  {
+    Radio.getRsqStatus(SI4707_INTACK);
+    ReceivedSignalQualityPacket payload = {
+        .weatherRadioInterruptType = WeatherRadioInterruptType::WB_RSQ_INTERRUPT,
+        .rssi = rssi,
+        .snr = snr,
+        .freqoff = freqoff,
+    };
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::WEATHER_RADIO_PACKET,
+        .payloadSize = sizeof(payload),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+  }
+  {
+    SameStatusPacket payload = {.sameInterruptType = SameInterruptType::WB_SAME_END_OF_MESSAGE};
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::SAME_STATUS_PACKET,
+        .payloadSize = sizeof(payload),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+  }
+  {
+    SameStatusPacket payload = {.sameInterruptType = SameInterruptType::WB_SAME_PREAMBLE};
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::SAME_STATUS_PACKET,
+        .payloadSize = sizeof(payload),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+  }
+
+  {
+    Radio.sameFill("ZCZC-WXR-TOR-039173-039051-139069+0030-1591829-KCLE/NWS-");
+    msgStatus |= SI4707_MSGAVL; // Simulate message available
+    Radio.sameParse();
+    SameMessagePacket payload = {
+        .sameInterruptType = SameInterruptType::WB_SAME_MESSAGE_RECEIVED,
+        .originatorNameSize = static_cast<uint8_t>(strlen(sameOriginatorName)),
+        .originatorName = sameOriginatorName,
+        .eventNameSize = static_cast<uint8_t>(strlen(sameEventName)),
+        .eventName = sameEventName,
+        .callSignSize = static_cast<uint8_t>(strlen(sameCallSign)),
+        .callSign = sameCallSign,
+        .locations = sameLocations,
+        .locationCodes = sameLocationCodes,
+        .duration = sameDuration,
+        .day = sameDay,
+        .hour = sameHour,
+        .minute = sameMinute,
+    };
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::SAME_MESSAGE_PACKET,
+        // Don't use sizeof on structs with pointers
+        .payloadSize = 1U +                              // sameInterruptType:uint8_t
+                       1U + payload.originatorNameSize + // originatorNameSize:uint8_t + (originatorName:uint8_t * originatorNameSize)
+                       1U + payload.eventNameSize +      // eventNameSize:uint8_t + (eventName:uint8_t * eventNameSize)
+                       1U + payload.callSignSize +       // callSignSize:uint8_t + (callSign:uint8_t * callSignSize)
+                       1U + (payload.locations * 4) +    // locationa:uint8_t + (locationCodes:uint32_t * locationCodesSize)
+                       2U +                              // duration:uint16_t
+                       2U +                              // day:uint16_t
+                       1U +                              // hour:uint8_t
+                       1U                                // minute:uint8_t
+        ,
+    };
+    UnoStormPacket packet;
+    packet.header = header;
+    startPacket(header);
+
+    size_t bytesSent = 0;
+
+    bytesSent += Serial.write(payload.sameInterruptType);
+    bytesSent += Serial.write(payload.originatorNameSize);
+    bytesSent += sendBuffer(payload.originatorNameSize, reinterpret_cast<const uint8_t *>(payload.originatorName));
+    bytesSent += Serial.write(payload.eventNameSize);
+    bytesSent += sendBuffer(payload.eventNameSize, reinterpret_cast<const uint8_t *>(payload.eventName));
+    bytesSent += Serial.write(payload.callSignSize);
+    bytesSent += sendBuffer(payload.callSignSize, reinterpret_cast<const uint8_t *>(payload.callSign));
+    bytesSent += Serial.write(payload.locations);
+
+    for (uint8_t i = 0; i < payload.locations; i++)
+    {
+      bytesSent += sendBuffer(4, reinterpret_cast<const uint8_t *>(&(payload.locationCodes[i])));
+    }
+
+    bytesSent += sendBuffer(2, reinterpret_cast<const uint8_t *>(&(payload.duration)));
+    bytesSent += sendBuffer(2, reinterpret_cast<const uint8_t *>(&(payload.day)));
+    bytesSent += Serial.write(payload.hour);
+    bytesSent += Serial.write(payload.minute);
+
+    // TODO: Remove later when you're confident this code is correct.
+    ASSERT(bytesSent == header.payloadSize);
+  }
+  {
+    AlertTonePacket payload = {
+        .weatherRadioInterruptType = WeatherRadioInterruptType::WB_ALERT_TONE_INTERRUPT,
+        .alertTone = 1,
+    };
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::WEATHER_RADIO_PACKET,
+        .payloadSize = sizeof(AlertTonePacket),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+  }
+  {
+    AlertTonePacket payload = {
+        .weatherRadioInterruptType = WeatherRadioInterruptType::WB_ALERT_TONE_INTERRUPT,
+        .alertTone = 0,
+    };
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::WEATHER_RADIO_PACKET,
+        .payloadSize = sizeof(AlertTonePacket),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+  }
+  {
+    ErrorPacket payload = {
+        .weatherRadioInterruptType = WeatherRadioInterruptType::WB_ERROR_INTERRUPT,
+    };
+    UnoStormPacketHeader header = {
+        .packetType = PacketType::WEATHER_RADIO_PACKET,
+        .payloadSize = sizeof(ErrorPacket),
+    };
+    UnoStormPacket packet = {
+        .header = header,
+        .payload = reinterpret_cast<const uint8_t *>(&payload),
+    };
+    sendPacket(packet);
+  }
+#endif
 }
 
 void loop()
 {
+#ifdef OPERATOR_MODE
   shell.executeIfInput();
+#endif
 
   checkLightningSensor();
-  if (intStatus & SI4707_INTAVL) {
+  if (intStatus & SI4707_INTAVL)
+  {
     radioStatus();
   }
   taskTimer.tick();
-
 }
