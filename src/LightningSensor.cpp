@@ -1,8 +1,8 @@
-// #include <cstdint>
 #include "LightningSensor.h"
 #include "SparkFun_AS3935.h"
 #include <SPI.h>
 #include <Wire.h>
+#include <stdint.h>
 // #include <sys/time.h>
 
 /*
