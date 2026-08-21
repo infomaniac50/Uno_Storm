@@ -1,6 +1,6 @@
-#include <stdint.h>
-#include <SI4707.h>
 #include <PacketTypes.h>
+#include <SI4707.h>
+#include <stdint.h>
 
 size_t startPacket(UnoStormPacketHeader header)
 {
@@ -11,8 +11,7 @@ size_t startPacket(UnoStormPacketHeader header)
 
 size_t sendPacket(UnoStormPacket packet)
 {
-  return startPacket(packet.header) +
-         sendBuffer(packet.header.payloadSize, packet.payload);
+  return startPacket(packet.header) + sendBuffer(packet.header.payloadSize, packet.payload);
 }
 
 size_t sendBuffer(size_t bufferSize, const uint8_t *buffer)

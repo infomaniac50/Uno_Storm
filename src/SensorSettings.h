@@ -27,42 +27,41 @@ struct SensorSettings
   // SensorSettings (int noiseFloor, int b, int c) : a (a), b (b), c (c) {}
   // Default constructor
   // SensorSettings() : SensorSettings () {}
-  SensorSettings() {}
+  SensorSettings()
+  {
+  }
   // Copy constructor
-  SensorSettings (const SensorSettings &) = default; // This is required
+  SensorSettings(const SensorSettings &) = default; // This is required
   // Comparison operator
-  bool  operator == (const SensorSettings &rhs) const {
-    return noiseFloor == rhs.noiseFloor && 
-      watchdogThreshold == rhs.watchdogThreshold && 
-      spikeRejection == rhs.spikeRejection &&
-      lightningThreshold == rhs.lightningThreshold &&
-      tuningCapacitor == rhs.tuningCapacitor &&
-      sensorLocation == rhs.sensorLocation &&
-      reportDisturber == rhs.reportDisturber
-      ;
+  bool operator==(const SensorSettings &rhs) const
+  {
+    return noiseFloor == rhs.noiseFloor && watchdogThreshold == rhs.watchdogThreshold && spikeRejection == rhs.spikeRejection && lightningThreshold == rhs.lightningThreshold &&
+           tuningCapacitor == rhs.tuningCapacitor && sensorLocation == rhs.sensorLocation && reportDisturber == rhs.reportDisturber;
   }
   // Inequality operator
-  bool  operator != (const SensorSettings &rhs) const {
-    return ! (*this == rhs);
+  bool operator!=(const SensorSettings &rhs) const
+  {
+    return !(*this == rhs);
   }
-  #ifdef OPERATOR_MODE
+#ifdef OPERATOR_MODE
   // Print method
-  void print (const char *prefix = "", Print & out = Serial) const {
-    out.print (prefix);
-    out.print (noiseFloor);
-    out.write (' ');
-    out.print (watchdogThreshold);
-    out.write (' ');
-    out.println (spikeRejection);
-    out.write (' ');
-    out.println (lightningThreshold);
-    out.write (' ');
-    out.println (tuningCapacitor);
-    out.write (' ');
-    out.println (sensorLocation);
-    out.write (' ');
-    out.println (reportDisturber);
+  void print(const char *prefix = "", Print &out = Serial) const
+  {
+    out.print(prefix);
+    out.print(noiseFloor);
+    out.write(' ');
+    out.print(watchdogThreshold);
+    out.write(' ');
+    out.println(spikeRejection);
+    out.write(' ');
+    out.println(lightningThreshold);
+    out.write(' ');
+    out.println(tuningCapacitor);
+    out.write(' ');
+    out.println(sensorLocation);
+    out.write(' ');
+    out.println(reportDisturber);
   }
-  #endif
+#endif
 };
 #endif

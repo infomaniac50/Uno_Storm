@@ -1,8 +1,8 @@
 // #include <cstdint>
+#include "LightningSensor.h"
+#include "SparkFun_AS3935.h"
 #include <SPI.h>
 #include <Wire.h>
-#include "SparkFun_AS3935.h"
-#include "LightningSensor.h"
 // #include <sys/time.h>
 
 /*
@@ -10,9 +10,13 @@
   https://www.playingwithfusion.com/productview.php?pdid=135&catid=1012
 
   **Product Description**
-  Breakout board for the AS3935 digital lightning sensor based on the AMS reference design. Includes specially tuned antenna, SPI or I2C interfacing, and a wide 2.4V to 5.5V standard operating range. This innovative sensor is designed to interface with most current development systems and boards, including all current Arduino modules. The breakout board features an inductor (antenna) specially designed for this application, and the board ships fully calibrated. This ensures that you don’t have to write a massive back-end to support low-level IC calibration, just focus on your final application!
+  Breakout board for the AS3935 digital lightning sensor based on the AMS reference design. Includes specially tuned antenna, SPI or I2C interfacing, and a wide 2.4V to 5.5V
+  standard operating range. This innovative sensor is designed to interface with most current development systems and boards, including all current Arduino modules. The breakout
+  board features an inductor (antenna) specially designed for this application, and the board ships fully calibrated. This ensures that you don’t have to write a massive back-end
+  to support low-level IC calibration, just focus on your final application!
 
-  We store calibration values for each board shipped. The calibration value (in pF) is written on the lower corner of the product label. This information can also be provided at your request by contacting Technical Support and referencing your original order number.
+  We store calibration values for each board shipped. The calibration value (in pF) is written on the lower corner of the product label. This information can also be provided at
+  your request by contacting Technical Support and referencing your original order number.
 */
 
 // 0x03 is default, but the address can also be 0x02, or 0x01.
@@ -40,18 +44,19 @@ bool interruptAttached;
 
 void LightningSensor::attachInterruptPin()
 {
-  if (!interruptAttached) {
+  if (!interruptAttached)
+  {
     // When lightning is detected the interrupt pin goes HIGH.
     sensorInterruptTriggered = false; // clear trigger
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), AS3935_ISR, RISING);
     interruptAttached = true;
   }
-
 }
 
 void LightningSensor::detachInterruptPin()
 {
-  if (interruptAttached) {
+  if (interruptAttached)
+  {
     detachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN));
     interruptAttached = false;
   }
@@ -103,7 +108,6 @@ int LightningSensor::begin(SensorSettings sensorSettings, bool enableInterruptPi
   // Followed by its corresponding read function. Default is zero.
   lightning.lightningThreshold(sensorSettings.lightningThreshold);
 
-
   bool calibrationSuccessful = lightning.wakeUp();
 
   // When the distance to the storm is estimated, it takes into account other
@@ -125,14 +129,16 @@ int LightningSensor::begin(SensorSettings sensorSettings, bool enableInterruptPi
   //  Serial.println("Successfully woken up!");
   // else
   // Serial.println("Error recalibrating internal osciallator on wake up.");
-  if (enableInterruptPin) {
+  if (enableInterruptPin)
+  {
     attachInterruptPin();
   }
 
   return calibrationSuccessful ? 0 : -2;
 }
 
-SparkFun_AS3935& LightningSensor::getSensor() {
+SparkFun_AS3935 &LightningSensor::getSensor()
+{
   return lightning;
 }
 
