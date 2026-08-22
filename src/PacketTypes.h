@@ -106,7 +106,7 @@ struct __attribute__((packed)) ErrorPacket
 };
 
 size_t startPacket(UnoStormPacketHeader header);
-size_t sendPacket(UnoStormPacket packet);
+size_t sendPacket(const UnoStormPacket *packet);
 size_t sendBuffer(size_t bufferSize, const uint8_t *buffer);
 
 static_assert(sizeof(UnoStormPacketHeader) == 3, "UnoStormPacketHeader size is unexpected");

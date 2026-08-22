@@ -178,7 +178,7 @@ void checkLightningSensor()
           .header = header,
           .payload = reinterpret_cast<const uint8_t *>(&payload),
       };
-      sendPacket(packet);
+      sendPacket(&packet);
 #endif
     }
   }
@@ -721,7 +721,7 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
 #endif
     Radio.sameFlush(); //  This should be done after any tune function.
     // intStatus |= SI4707_RSQINT;  //  We can force it to get rsqStatus on any tune.
@@ -748,7 +748,7 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
 #endif
   }
 
@@ -779,7 +779,6 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
     // 3 = SAME header message complete.
     if (sameStatus & SI4707_EOMDET)
     {
-      Radio.sameFlush();
       stopSameFlushTimer();
 #ifdef OPERATOR_MODE
       Serial.println(F("EOM detected."));
@@ -793,7 +792,7 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
           .header = header,
           .payload = reinterpret_cast<const uint8_t *>(&payload),
       };
-      sendPacket(packet);
+      sendPacket(&packet);
 #endif
       //  More application specific code could go here. (Mute audio, turn something on/off, etc.)
     }
@@ -813,7 +812,7 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
           .header = header,
           .payload = reinterpret_cast<const uint8_t *>(&payload),
       };
-      sendPacket(packet);
+      sendPacket(&packet);
 #endif
     }
 
@@ -999,7 +998,6 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
       Serial.println(F("Third Header Received"));
 #endif
       stopSameFlushTimer();
-      Radio.sameFlush();
     }
   }
 
@@ -1015,7 +1013,6 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
         Radio.setProperty(SI4707_WB_ASQ_INT_SOURCE, (SI4707_ALERTOFIEN));
         // SAME is done by now.
         stopSameFlushTimer();
-        Radio.sameFlush();
 
 #ifdef OPERATOR_MODE
         Serial.println(F("WAT is on."));
@@ -1033,7 +1030,7 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
             .header = header,
             .payload = reinterpret_cast<const uint8_t *>(&payload),
         };
-        sendPacket(packet);
+        sendPacket(&packet);
 #endif
         //  More application specific code could go here.  (Unmute audio, turn something on/off, etc.)
       }
@@ -1057,7 +1054,7 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
             .header = header,
             .payload = reinterpret_cast<const uint8_t *>(&payload),
         };
-        sendPacket(packet);
+        sendPacket(&packet);
 #endif
         //  More application specific code could go here.  (Mute audio, turn something on/off, etc.)
       }
@@ -1084,7 +1081,7 @@ int radioStatus(int /*argc*/ = 0, char ** /*argv*/ = NULL)
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
 #endif
   }
 
@@ -1252,7 +1249,7 @@ void setup()
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
   }
   {
     Radio.getIntStatus();
@@ -1273,7 +1270,7 @@ void setup()
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
   }
   {
     Radio.getRsqStatus(SI4707_INTACK);
@@ -1291,7 +1288,7 @@ void setup()
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
   }
   {
     SameStatusPacket payload = {.sameInterruptType = SameInterruptType::WB_SAME_END_OF_MESSAGE};
@@ -1303,7 +1300,7 @@ void setup()
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
   }
   {
     SameStatusPacket payload = {.sameInterruptType = SameInterruptType::WB_SAME_PREAMBLE};
@@ -1315,7 +1312,7 @@ void setup()
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
   }
 
   {
@@ -1392,7 +1389,7 @@ void setup()
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
   }
   {
     AlertTonePacket payload = {
@@ -1407,7 +1404,7 @@ void setup()
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
   }
   {
     ErrorPacket payload = {
@@ -1421,7 +1418,7 @@ void setup()
         .header = header,
         .payload = reinterpret_cast<const uint8_t *>(&payload),
     };
-    sendPacket(packet);
+    sendPacket(&packet);
   }
 #endif
 }

@@ -9,9 +9,9 @@ size_t startPacket(UnoStormPacketHeader header)
   return sendBuffer(5, buffer);
 }
 
-size_t sendPacket(UnoStormPacket packet)
+size_t sendPacket(const UnoStormPacket *packet)
 {
-  return startPacket(packet.header) + sendBuffer(packet.header.payloadSize, packet.payload);
+  return startPacket(packet->header) + sendBuffer(packet->header.payloadSize, packet->payload);
 }
 
 size_t sendBuffer(size_t bufferSize, const uint8_t *buffer)
