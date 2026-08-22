@@ -1,0 +1,11 @@
+{
+    "c-cpp-flylint.cppcheck.platform": "avr8",
+    "c-cpp-flylint.cppcheck.severityLevels": {
+        "error": "Error",
+        "warning": "Warning",
+        "style": "Information",
+        "performance": "Information",
+        "portability": "Information",
+        "information": "Information"
+    }
+}
