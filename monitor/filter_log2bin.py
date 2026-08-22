@@ -37,7 +37,6 @@ class LogToBin(DeviceMonitorFilterBase):
         print("--- Logging an output to %s" % os.path.abspath(log_file_name))
         # pylint: disable=consider-using-with
         self._log_fp = io.open(log_file_name, "wb")
-        print(self._log_fp)
         return self
 
     def __del__(self):
